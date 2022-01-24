@@ -12,6 +12,14 @@ Class {
 }
 
 { #category : #accessing }
+LepiterBuildingBlocs class >> fileSelector [
+	| container content |
+	container := self new.
+	content := container fileSelector.
+	^ container addChild: content
+]
+
+{ #category : #accessing }
 LepiterBuildingBlocs class >> initialize [
 
 	super initialize.
@@ -73,6 +81,64 @@ LepiterBuildingBlocs >> coder [
 LepiterBuildingBlocs >> coderViewModel [
 
 	^ coderViewModel
+]
+
+{ #category : #accessing }
+LepiterBuildingBlocs >> fileSelector [
+
+	| fileSelector horizontalPane label secondLabel variableName |
+	(self coderViewModel sharedBindings bindingOf: #folder) value:
+		'.' asFileReference.
+	horizontalPane := BrHorizontalPane new.
+	label := BrLabel new
+		         aptitude: BrGlamorousLabelAptitude new;
+		         text: 'Shared Variable: ';
+		         padding: (BlInsets all: 5).
+	variableName := BrEditableLabel new.
+	variableName
+		aptitude: (BrGlamorousEditableLabelAptitude new
+				 glamorousCodeFont;
+				 fontSize: 12);
+		padding: (BlInsets all: 5);
+		text: 'folder';
+		inputFilter: BrTextEditorClassNameInputFilter new;
+		when: BrEditorAcceptWish do: [ :aWish | 
+		(self coderViewModel sharedBindings bindingOf:
+			 aWish text asString asSymbol) value: fileSelector folder.
+		variableName text: aWish text ];
+		whenKey: BlKeyCombination primaryC
+		labelDo: [ :aShortcutEvent :aShortcut | 
+			Clipboard clipboardText: aShortcutEvent currentTarget text asString ].
+	secondLabel := BrLabel new
+		               aptitude: BrGlamorousLabelAptitude new;
+		               text:
+			               'Is bound to: ' , '.' asFileReference pathString;
+		               padding: (BlInsets all: 5).
+	fileSelector := BrFileSelector new
+		                buttonLabel: 'Choose Working Directory';
+		                okAction: [ :aDirectory :aButton | 
+			                (self coderViewModel sharedBindings bindingOf:
+					                 variableName text asString asSymbol) value:
+					                aDirectory.
+			                secondLabel text:
+					                'Is bound to: ' , aDirectory pathString ].
+	horizontalPane
+		constraintsDo: [ :c | 
+			c vertical fitContent.
+			c horizontal matchParent ];
+		padding: (BlInsets all: 5).
+	horizontalPane addChildren: { 
+			label.
+			variableName.
+			secondLabel }.
+	^ BrVerticalPane new
+		  constraintsDo: [ :c | 
+			  c vertical matchParent.
+			  c horizontal matchParent ];
+		  padding: (BlInsets all: 5);
+		  addChildren: { 
+				  horizontalPane.
+				  fileSelector }
 ]
 
 { #category : #accessing }
