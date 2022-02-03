@@ -6,17 +6,22 @@ Class {
 		'coder',
 		'coderViewModel',
 		'snippetViewModel',
-		'snippetElement'
+		'snippetElement',
+		'dataSnippet',
+		'data'
 	],
 	#category : #LepiterBuildingBlocs
 }
 
 { #category : #accessing }
 LepiterBuildingBlocs class >> fileSelector [
-	| container content |
+
+	| container |
 	container := self new.
-	content := container fileSelector.
-	^ container addChild: content
+	container dataSnippetData ifNotEmpty: [ :data | 
+		self inform: data asString ].
+
+	^ container addChild: container fileSelector
 ]
 
 { #category : #accessing }
@@ -84,6 +89,23 @@ LepiterBuildingBlocs >> coderViewModel [
 ]
 
 { #category : #accessing }
+LepiterBuildingBlocs >> dataSnippet [
+
+	^ dataSnippet ifNil: [ 
+		  dataSnippet := self findOrCreateChildDataSnippet ]
+]
+
+{ #category : #accessing }
+LepiterBuildingBlocs >> dataSnippetData [
+
+	^ data ifNil: [ 
+		  dataSnippet := self findOrCreateChildDataSnippet.
+
+		  data ifNil: [ 
+			  data := (self serializeSnippet: dataSnippet) at: #data ] ]
+]
+
+{ #category : #accessing }
 LepiterBuildingBlocs >> fileSelector [
 
 	| fileSelector horizontalPane label secondLabel variableName |
@@ -105,7 +127,9 @@ LepiterBuildingBlocs >> fileSelector [
 		when: BrEditorAcceptWish do: [ :aWish | 
 		(self coderViewModel sharedBindings bindingOf:
 			 aWish text asString asSymbol) value: fileSelector folder.
-		variableName text: aWish text ];
+		variableName text: aWish text.
+		self updateData: [ :data | 
+			data at: #variable put: aWish text asString ] ];
 		whenKey: BlKeyCombination primaryC
 		labelDo: [ :aShortcutEvent :aShortcut | 
 			Clipboard clipboardText: aShortcutEvent currentTarget text asString ].
@@ -121,7 +145,9 @@ LepiterBuildingBlocs >> fileSelector [
 					                 variableName text asString asSymbol) value:
 					                aDirectory.
 			                secondLabel text:
-					                'Is bound to: ' , aDirectory pathString ].
+					                'Is bound to: ' , aDirectory pathString.
+			                self updateData: [ :data | 
+					                data at: #folder put: aDirectory pathString ] ].
 	horizontalPane
 		constraintsDo: [ :c | 
 			c vertical fitContent.
@@ -139,6 +165,25 @@ LepiterBuildingBlocs >> fileSelector [
 		  addChildren: { 
 				  horizontalPane.
 				  fileSelector }
+]
+
+{ #category : #accessing }
+LepiterBuildingBlocs >> findOrCreateChildDataSnippet [
+
+	^ self snippet children items
+		  detect: [ :each | each isKindOf: LeUnknownSnippet ]
+		  ifNone: [ 
+			  | aSnippet serialized snippetJSON |
+			  aSnippet := LeTextSnippet string: ''.
+			  self snippet addFirstSnippet: aSnippet.
+			  snippetJSON := self serializeSnippet: aSnippet.
+			  snippetJSON __type: LeUnknownSnippet leJsonV4Name.
+			  snippetJSON data: (data := NeoJSONObject new).
+			  serialized := NeoJSONWriter toStringPretty: snippetJSON.
+			  aSnippet becomeForward:
+				  (LeUnknownSnippet new jsonString: serialized source: aSnippet).
+			  self snippetViewModel expanded: false.
+			  aSnippet ]
 ]
 
 { #category : #accessing }
@@ -170,6 +215,16 @@ LepiterBuildingBlocs >> initialize [
 		        self snippetElement: containerElement ].
 	self enqueueTask: task.
 	^ self
+]
+
+{ #category : #accessing }
+LepiterBuildingBlocs >> serializeSnippet: aSnippet [
+
+	^ NeoJSONObject fromString: (String streamContents: [ :s | 
+			   LeJsonV4 uniqueInstance
+				   serialize: aSnippet
+				   on: s
+				   prettyPrint: true ])
 ]
 
 { #category : #accessing }
@@ -241,4 +296,16 @@ LepiterBuildingBlocs >> template [
 			  label.
 			  pageName.
 			  cloneButton }
+]
+
+{ #category : #accessing }
+LepiterBuildingBlocs >> updateData: aBlock [
+
+	| snippetJSON |
+	aBlock value: data.
+	snippetJSON := self serializeSnippet: dataSnippet.
+	snippetJSON data: data.
+	dataSnippet
+		jsonString: (NeoJSONWriter toStringPretty: snippetJSON)
+		source: self snippet
 ]
