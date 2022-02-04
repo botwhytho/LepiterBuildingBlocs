@@ -146,9 +146,7 @@ LepiterBuildingBlocs >> fileSelector [
 		when: BrTextEditorTextReplacedEvent
 		do: [ :anEvent | 
 			(self coderViewModel sharedBindings bindingOf:
-				 anEvent text asString asSymbol) value: fileSelector folder
-			"ifNil: [ '.' asFileReference ]
-					 ifNotNil: [ :notNil | notNil" "]" ].
+				 anEvent text asString asSymbol) value: fileSelector folder ].
 	fileSelector := BrFileSelector new
 		                id: #brFileSelector;
 		                buttonLabel: 'Choose Working Directory';
