@@ -16,12 +16,25 @@ Class {
 { #category : #accessing }
 LepiterBuildingBlocs class >> fileSelector [
 
-	| container |
+	| container content |
 	container := self new.
-	container dataSnippetData ifNotEmpty: [ :data | 
-		self inform: data asString ].
+	content := container fileSelector.
+	container dataSnippetData
+		ifEmpty: [ (content childNamed: #variableName) text: 'folder' ]
+		ifNotEmpty: [ :data | 
+			data variable
+				ifNil: [ (content childNamed: #variableName) text: 'folder' ]
+				ifNotNil: [ :variable | 
+				(content childNamed: #variableName) text: variable ].
 
-	^ container addChild: container fileSelector
+			data folder ifNotNil: [ :folder | 
+				(content childNamed: #brFileSelector) folder:
+					folder asFileReference.
+				(content childNamed: #secondLabel) text:
+					'Is bound to: ' , folder asFileReference pathString ] ].
+	container hideDataSnippet.
+
+	^ container addChild: content
 ]
 
 { #category : #accessing }
@@ -109,8 +122,6 @@ LepiterBuildingBlocs >> dataSnippetData [
 LepiterBuildingBlocs >> fileSelector [
 
 	| fileSelector horizontalPane label secondLabel variableName |
-	(self coderViewModel sharedBindings bindingOf: #folder) value:
-		'.' asFileReference.
 	horizontalPane := BrHorizontalPane new.
 	label := BrLabel new
 		         aptitude: BrGlamorousLabelAptitude new;
@@ -118,27 +129,28 @@ LepiterBuildingBlocs >> fileSelector [
 		         padding: (BlInsets all: 5).
 	variableName := BrEditableLabel new.
 	variableName
+		id: #variableName;
 		aptitude: (BrGlamorousEditableLabelAptitude new
 				 glamorousCodeFont;
 				 fontSize: 12);
 		padding: (BlInsets all: 5);
-		text: 'folder';
 		inputFilter: BrTextEditorClassNameInputFilter new;
 		when: BrEditorAcceptWish do: [ :aWish | 
-		(self coderViewModel sharedBindings bindingOf:
-			 aWish text asString asSymbol) value: fileSelector folder.
 		variableName text: aWish text.
-		self updateData: [ :data | 
-			data at: #variable put: aWish text asString ] ];
+		self updateData: [ :someData | 
+			someData at: #variable put: aWish text asString ] ];
 		whenKey: BlKeyCombination primaryC
 		labelDo: [ :aShortcutEvent :aShortcut | 
 			Clipboard clipboardText: aShortcutEvent currentTarget text asString ].
-	secondLabel := BrLabel new
-		               aptitude: BrGlamorousLabelAptitude new;
-		               text:
-			               'Is bound to: ' , '.' asFileReference pathString;
-		               padding: (BlInsets all: 5).
+	variableName editor
+		when: BrTextEditorTextReplacedEvent
+		do: [ :anEvent | 
+			(self coderViewModel sharedBindings bindingOf:
+				 anEvent text asString asSymbol) value: fileSelector folder
+			"ifNil: [ '.' asFileReference ]
+					 ifNotNil: [ :notNil | notNil" "]" ].
 	fileSelector := BrFileSelector new
+		                id: #brFileSelector;
 		                buttonLabel: 'Choose Working Directory';
 		                okAction: [ :aDirectory :aButton | 
 			                (self coderViewModel sharedBindings bindingOf:
@@ -146,8 +158,14 @@ LepiterBuildingBlocs >> fileSelector [
 					                aDirectory.
 			                secondLabel text:
 					                'Is bound to: ' , aDirectory pathString.
-			                self updateData: [ :data | 
-					                data at: #folder put: aDirectory pathString ] ].
+			                self updateData: [ :someData | 
+					                someData at: #folder put: aDirectory pathString ] ].
+	secondLabel := BrLabel new
+		               id: #secondLabel;
+		               aptitude: BrGlamorousLabelAptitude new;
+		               text:
+			               'Is bound to: ' , fileSelector folder pathString;
+		               padding: (BlInsets all: 5).
 	horizontalPane
 		constraintsDo: [ :c | 
 			c vertical fitContent.
@@ -158,6 +176,7 @@ LepiterBuildingBlocs >> fileSelector [
 			variableName.
 			secondLabel }.
 	^ BrVerticalPane new
+		  id: #fileSelector;
 		  constraintsDo: [ :c | 
 			  c vertical matchParent.
 			  c horizontal matchParent ];
@@ -173,17 +192,29 @@ LepiterBuildingBlocs >> findOrCreateChildDataSnippet [
 	^ self snippet children items
 		  detect: [ :each | each isKindOf: LeUnknownSnippet ]
 		  ifNone: [ 
-			  | aSnippet serialized snippetJSON |
-			  aSnippet := LeTextSnippet string: ''.
-			  self snippet addFirstSnippet: aSnippet.
-			  snippetJSON := self serializeSnippet: aSnippet.
+			  | aTextSnippet anUnknownSnippet serialized snippetJSON |
+			  aTextSnippet := LeTextSnippet string: ''.
+			  self snippet addFirstSnippet: aTextSnippet.
+			  snippetJSON := self serializeSnippet: aTextSnippet.
 			  snippetJSON __type: LeUnknownSnippet leJsonV4Name.
 			  snippetJSON data: (data := NeoJSONObject new).
 			  serialized := NeoJSONWriter toStringPretty: snippetJSON.
-			  aSnippet becomeForward:
-				  (LeUnknownSnippet new jsonString: serialized source: aSnippet).
+			  anUnknownSnippet := LeUnknownSnippet new
+				                      jsonString: serialized
+				                      source: self snippet.
+			  aTextSnippet removeSelf.
+			  self snippet addFirstSnippet: anUnknownSnippet.
 			  self snippetViewModel expanded: false.
-			  aSnippet ]
+			  anUnknownSnippet ]
+]
+
+{ #category : #accessing }
+LepiterBuildingBlocs >> hideDataSnippet [
+
+	self enqueueTask: (BlTaskAction new action: [ 
+			 self snippetElement parent previousSiblingDo: [ :brTriangle | 
+				 brTriangle viewModel model toggle.
+				 self snippetViewModel expanded: false ] ])
 ]
 
 { #category : #accessing }
@@ -191,8 +222,10 @@ LepiterBuildingBlocs >> initialize [
 
 	| bindings task |
 	super initialize.
-	self flag:
-		'TODO: this walking back on the stack will probably break if underlying platform code changes'.
+	self
+		flag:
+			'TODO: this walking back on the stack will probably break if underlying platform code changes';
+		id: #lepiterBuildingBloc.
 	bindings := (thisContext stack detect: [ :each | 
 		             each contextClass = GtPharoSourceCoder ]) arguments
 		            second bindingStrategy.
@@ -204,15 +237,11 @@ LepiterBuildingBlocs >> initialize [
 		c vertical matchParent.
 		c horizontal matchParent ].
 	task := BlTaskAction new action: [ 
-		        | containerElement |
-		        containerElement := self
-			                            allParentsDetect: [ :each | 
-			                            each isKindOf:
-				                            LeSnippetContainerElement ]
-			                            ifFound: [ :found | 
-			                            found children first ]
-			                            ifNone: [ nil ].
-		        self snippetElement: containerElement ].
+		        snippetElement := self
+			                          allParentsDetect: [ :each | 
+			                          each isKindOf: LeSnippetContainerElement ]
+			                          ifFound: [ :found | found children first ]
+			                          ifNone: [ nil ] ].
 	self enqueueTask: task.
 	^ self
 ]
@@ -237,12 +266,6 @@ LepiterBuildingBlocs >> snippet [
 LepiterBuildingBlocs >> snippetElement [
 
 	^ snippetElement
-]
-
-{ #category : #accessing }
-LepiterBuildingBlocs >> snippetElement: aContainerElement [
-
-	snippetElement := aContainerElement
 ]
 
 { #category : #accessing }
