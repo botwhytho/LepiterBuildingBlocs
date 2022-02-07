@@ -162,14 +162,28 @@ LepiterBuildingBlocs >> doItChildren [
 ]
 
 { #category : #accessing }
+LepiterBuildingBlocs >> doItPage [
+
+	| direction snippets |
+	self flag:
+		' Get the index of top-most parent snippet if thisSnippet is nested.
+	For above run up to that index INCLUDING it. For below use after that index.
+	Figure out parent with while loop'.
+	direction := (thisContext sender gtVariables asDictionary at: #aButtonElement) label asString.
+	snippets := self snippet page children items.
+	direction = 'Above' ifTrue: [ snippets := snippets copyUpTo: self snippet ].
+	direction = 'Below' ifTrue: [ snippets := snippets copyAfter: self snippet ].
+	self doIt: snippets
+]
+
+{ #category : #accessing }
 LepiterBuildingBlocs >> doItSiblings [
 
-	| allSiblingSnippets direction snippets |
+	| direction snippets |
 	direction := (thisContext sender gtVariables asDictionary at: #aButtonElement) label asString.
-	allSiblingSnippets := self snippet parent children items.
-	direction = 'Above' ifTrue: [ snippets := allSiblingSnippets copyUpTo: self snippet ].
-	direction = 'Below' ifTrue: [ snippets := allSiblingSnippets copyAfter: self snippet ].
-	direction = 'All' ifTrue: [ snippets := allSiblingSnippets copy remove: self snippet; yourself ].
+	snippets := self snippet parent children items.
+	direction = 'Above' ifTrue: [ snippets := snippets copyUpTo: self snippet ].
+	direction = 'Below' ifTrue: [ snippets := snippets copyAfter: self snippet ].
 	self doIt: snippets
 ]
 
@@ -265,7 +279,8 @@ LepiterBuildingBlocs >> findOrCreateChildDataSnippet [
 LepiterBuildingBlocs >> gatherChildSnippets: aSnippet withCollection: snippets [
 
 	(LeCodeSnippet allSubclasses , { LeCodeSnippet } anySatisfy: [ :each | 
-		 each = aSnippet class ]) ifTrue: [ snippets add: aSnippet ].
+		 each = aSnippet class ]) ifTrue: [ 
+		aSnippet = self snippet ifFalse: [ snippets add: aSnippet ] ].
 	(aSnippet children size > 0 and: [ 
 		 (self snippetElement childNamed: #runAllNestedChildren) isChecked ]) 
 		ifTrue: [ 
