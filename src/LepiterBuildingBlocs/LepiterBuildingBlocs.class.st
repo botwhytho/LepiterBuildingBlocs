@@ -534,10 +534,45 @@ LepiterBuildingBlocs >> runSnippetsProgress [
 		  constraintsDo: [ :c | 
 			  c vertical fitContent.
 			  c horizontal matchParent ];
-		  addChild: (BrProgressExamples new barAndTextInside
+		  addChild: (BrProgress new
 				   id: #runSnippetsProgress;
 				   visibility: BlVisibility hidden;
-				   patternLabel: '{1}/{2} Snippets Ran')
+				   patternLabel: '{1}/{2} Snippets Ran';
+				   layout: BlLinearLayout new;
+				   constraintsDo: [ :c | 
+					   c horizontal matchParent.
+					   c vertical fitContent ];
+				   aptitude: self runSnippetsProgressBarLook + (self runSnippetsProgressTextLook
+							    foreground: Color white;
+							    labelDo: [ :aLabel | 
+								    aLabel constraintsDo: [ :c | c ignoreByLayout ] ]))
+]
+
+{ #category : #accessing }
+LepiterBuildingBlocs >> runSnippetsProgressBarLook [
+
+	^ BrProgressBarAptitude new
+		  barDo: [ :aBar | 
+			  aBar background: Color blue.
+			  aBar geometry: (BlRoundedRectangleGeometry cornerRadius: 8).
+			  aBar constraintsDo: [ :c | c vertical exact: 20 ] ];
+		  containerDo: [ :aBarContainer | 
+			  aBarContainer background: Color blue muchLighter.
+			  aBarContainer geometry:
+					  (BlRoundedRectangleGeometry cornerRadius: 8) ]
+]
+
+{ #category : #accessing }
+LepiterBuildingBlocs >> runSnippetsProgressTextLook [
+
+	^ BrTextLabelAptitude new
+		  foreground: Color lightGray;
+		  labelDo: [ :aWidget | 
+			  aWidget constraintsDo: [ :c | 
+					  c margin: (BlInsets all: 3).
+					  c linear horizontal alignCenter.
+					  c ignored horizontal alignCenter.
+					  c ignored vertical alignCenter ] ]
 ]
 
 { #category : #accessing }
