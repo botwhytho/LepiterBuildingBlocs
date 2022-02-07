@@ -128,11 +128,12 @@ LepiterBuildingBlocs >> dataSnippetData [
 ]
 
 { #category : #accessing }
-LepiterBuildingBlocs >> doItChildren [
+LepiterBuildingBlocs >> doIt: someSnippets [
 
+	[ 
 	| snippets |
 	snippets := OrderedCollection new.
-	self snippet children do: [ :each | 
+	someSnippets do: [ :each | 
 		self gatherChildSnippets: each withCollection: snippets ].
 	self snippetViewModel snippetsCollectionDo: [ :aSnippetsCollection | 
 		| progress size |
@@ -152,7 +153,24 @@ LepiterBuildingBlocs >> doItChildren [
 						ifTrue: [ each doItAndGo ]
 						ifFalse: [ each doIt ] ].
 			progress amount: index total: size ].
-		progress visibility: BlVisibility hidden ]
+		progress visibility: BlVisibility hidden ] ]
+		forkAt: 29
+		named: #runSnippets
+]
+
+{ #category : #accessing }
+LepiterBuildingBlocs >> doItChildren [
+
+	self doIt: self snippet children
+]
+
+{ #category : #accessing }
+LepiterBuildingBlocs >> doItSiblings [
+
+    | direction | 
+    direction := (thisContext sender gtVariables asDictionary at: #aButtonElement) label.
+    self halt.
+	self doIt: self snippet children
 ]
 
 { #category : #accessing }
@@ -320,16 +338,20 @@ LepiterBuildingBlocs >> runSnippetsButtons [
 
 	| buttonGrid |
 	buttonGrid := self runSnippetsCreateButtons.
-	"(buttonGrid childNamed: #pageAbove) action:  [:aButtonElement :aButtonModel :anEvent |  self infom: aButtonElement text asString , ' was clicked.']"
-	#( #pageAbove #pageBelow #pageAll #siblingsAbove #siblingsBelow
-	   #siblingsAll ) do: [ :each | 
+	#( #pageAbove #pageBelow #pageAll "#siblingsAbove #siblingsBelow
+	   #siblingsAll #childrenAll") do: [ :each | 
 		(buttonGrid childNamed: each) action: [ 
 			:aButtonElement 
 			:aButtonModel 
 			:anEvent | 
-			self inform: aButtonElement label asString , ' was clicked.' ] ]. "#childrenAll"
-	(buttonGrid childNamed: #childrenAll) action: [ 
-		[ self doItChildren ] forkAt: 29 named: #runSnippets ].
+			self inform: aButtonElement label asString , ' was clicked.' ] ].
+	#(#siblingsAbove #siblingsBelow #siblingsAll) do: [:each|
+		(buttonGrid childNamed: each) action: [:aButtonElement :aButtonModel :anEvent |
+			self doItSiblings
+		]
+	].
+	(buttonGrid childNamed: #childrenAll) action: [:aButtonElement :aButtonModel :anEvent | 
+		"[" self doItChildren "] forkAt: 29 named: #runSnippets" ].
 	^ buttonGrid
 ]
 
