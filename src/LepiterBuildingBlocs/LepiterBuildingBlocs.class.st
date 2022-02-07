@@ -137,6 +137,8 @@ LepiterBuildingBlocs >> doIt: someSnippets [
 	self snippetViewModel snippetsCollectionDo: [ :aSnippetsCollection | 
 		| progress size |
 		size := snippets size.
+		((snippets size = 1 and: [ snippets first = self snippet ]) or: [ 
+			 snippets isEmpty ]) ifTrue: [ ^ nil ].
 		progress := self snippetElement childNamed: #runSnippetsProgress.
 		progress
 			amount: 0 total: size;
@@ -164,15 +166,25 @@ LepiterBuildingBlocs >> doItChildren [
 { #category : #accessing }
 LepiterBuildingBlocs >> doItPage [
 
-	| direction snippets |
-	self flag:
-		' Get the index of top-most parent snippet if thisSnippet is nested.
-	For above run up to that index INCLUDING it. For below use after that index.
-	Figure out parent with while loop'.
-	direction := (thisContext sender gtVariables asDictionary at: #aButtonElement) label asString.
+	| direction snippets topMostParentSnippet |
+	topMostParentSnippet := self snippet.
+	[ topMostParentSnippet parent isKindOf: LePage ] whileFalse: [ 
+		topMostParentSnippet := topMostParentSnippet parent ].
+	direction := (thisContext sender gtVariables asDictionary at:
+		              #aButtonElement) label asString.
 	snippets := self snippet page children items.
-	direction = 'Above' ifTrue: [ snippets := snippets copyUpTo: self snippet ].
-	direction = 'Below' ifTrue: [ snippets := snippets copyAfter: self snippet ].
+	direction = 'Above' ifTrue: [ 
+		(topMostParentSnippet ~= self snippet and: [ 
+			 (snippets indexOf: topMostParentSnippet) = snippets size ]) 
+			ifFalse: [ 
+				snippets := snippets copyUpTo:
+					            (snippets at:
+						             (snippets indexOf: topMostParentSnippet)
+						             + (topMostParentSnippet = self snippet
+								              ifTrue: [ 0 ]
+								              ifFalse: [ 1 ])) ] ].
+	direction = 'Below' ifTrue: [ 
+		snippets := snippets copyAfter: topMostParentSnippet ].
 	self doIt: snippets
 ]
 
@@ -357,8 +369,7 @@ LepiterBuildingBlocs >> runSnippetsButtons [
 		(buttonGrid childNamed: each) action: [ 
 			:aButtonElement 
 			:aButtonModel 
-			:anEvent | 
-			self inform: aButtonElement label asString , ' was clicked.' ] ].
+			:anEvent | [ self doItPage ] forkAt: 29 named: #runSnippets ] ].
 	#( #siblingsAbove #siblingsBelow #siblingsAll ) do: [ :each | 
 		(buttonGrid childNamed: each) action: [ 
 			:aButtonElement 
