@@ -81,12 +81,21 @@ LepiterBuildingBlocs class >> isRequestedByElementOrItsChild: arguments patch: a
 ]
 
 { #category : #accessing }
+LepiterBuildingBlocs class >> runSnippets [
+
+	| container content |
+	container := self new.
+	content := container runSnippets.
+	^ container addChild: content
+]
+
+{ #category : #accessing }
 LepiterBuildingBlocs class >> template [
+
 	| container content |
 	container := self new.
 	content := container template.
 	^ container addChild: content
-	
 ]
 
 { #category : #accessing }
@@ -116,6 +125,34 @@ LepiterBuildingBlocs >> dataSnippetData [
 
 		  data ifNil: [ 
 			  data := (self serializeSnippet: dataSnippet) at: #data ] ]
+]
+
+{ #category : #accessing }
+LepiterBuildingBlocs >> doItChildren [
+
+	| snippets |
+	snippets := OrderedCollection new.
+	self snippet children do: [ :each | 
+		self gatherChildSnippets: each withCollection: snippets ].
+	self snippetViewModel snippetsCollectionDo: [ :aSnippetsCollection | 
+		| progress size |
+		size := snippets size.
+		progress := self snippetElement childNamed: #runSnippetsProgress.
+		progress
+			amount: 0 total: size;
+			visibility: BlVisibility visible.
+		(snippets collect: [ :aSnippet | 
+			 (aSnippetsCollection findOrCreateSnippetViewModel: aSnippet)
+				 coderViewModel ]) doWithIndex: [ :each :index | 
+			index = size
+				ifFalse: [ each doIt ]
+				ifTrue: [ 
+					(self snippetElement childNamed: #inspectLastRunSnippet)
+						isChecked
+						ifTrue: [ each doItAndGo ]
+						ifFalse: [ each doIt ] ].
+			progress amount: index total: size ].
+		progress visibility: BlVisibility hidden ]
 ]
 
 { #category : #accessing }
@@ -207,6 +244,18 @@ LepiterBuildingBlocs >> findOrCreateChildDataSnippet [
 ]
 
 { #category : #accessing }
+LepiterBuildingBlocs >> gatherChildSnippets: aSnippet withCollection: snippets [
+
+	(LeCodeSnippet allSubclasses , { LeCodeSnippet } anySatisfy: [ :each | 
+		 each = aSnippet class ]) ifTrue: [ snippets add: aSnippet ].
+	(aSnippet children size > 0 and: [ 
+		 (self snippetElement childNamed: #runAllNestedChildren) isChecked ]) 
+		ifTrue: [ 
+			aSnippet children do: [ :each | 
+				self gatherChildSnippets: each withCollection: snippets ] ]
+]
+
+{ #category : #accessing }
 LepiterBuildingBlocs >> hideDataSnippet [
 
 	self enqueueTask: (BlTaskAction new action: [ 
@@ -242,6 +291,204 @@ LepiterBuildingBlocs >> initialize [
 			                          ifNone: [ nil ] ].
 	self enqueueTask: task.
 	^ self
+]
+
+{ #category : #accessing }
+LepiterBuildingBlocs >> runSnippets [
+
+	| labels |
+	labels := self runSnippetsLabels.
+
+	^ BrVerticalPane new
+		  id: #runSnippets;
+		  padding: (BlInsets all: 10);
+		  cellSpacing: 2;
+		  aptitude: (BrShadowAptitude new width: 1.2);
+		  constraintsDo: [ :c | 
+			  c vertical fitContent.
+			  c horizontal matchParent ];
+		  addChildren: { 
+				  labels first.
+				  self runSnippetsButtons.
+				  labels second.
+				  self runSnippetsCheckboxes.
+				  self runSnippetsProgress }
+]
+
+{ #category : #accessing }
+LepiterBuildingBlocs >> runSnippetsButtons [
+
+	| buttonGrid |
+	buttonGrid := self runSnippetsCreateButtons.
+	"(buttonGrid childNamed: #pageAbove) action:  [:aButtonElement :aButtonModel :anEvent |  self infom: aButtonElement text asString , ' was clicked.']"
+	#( #pageAbove #pageBelow #pageAll #siblingsAbove #siblingsBelow
+	   #siblingsAll ) do: [ :each | 
+		(buttonGrid childNamed: each) action: [ 
+			:aButtonElement 
+			:aButtonModel 
+			:anEvent | 
+			self inform: aButtonElement label asString , ' was clicked.' ] ]. "#childrenAll"
+	(buttonGrid childNamed: #childrenAll) action: [ 
+		[ self doItChildren ] forkAt: 29 named: #runSnippets ].
+	^ buttonGrid
+]
+
+{ #category : #accessing }
+LepiterBuildingBlocs >> runSnippetsCheckboxes [
+
+	^ BrHorizontalPane new
+		  padding: (BlInsets all: 5);
+		  border: (BlBorder paint: (Color gray alpha: 0.3));
+		  constraintsDo: [ :c | 
+			  c vertical matchParent.
+			  c horizontal matchParent ];
+		  addChildren: { 
+				  (BrHorizontalPane new
+					   alignCenter;
+					   cellSpacing: 5;
+					   constraintsDo: [ :c | 
+						   c vertical matchParent.
+						   c horizontal matchParent ];
+					   addChildren: { 
+							   (BrCheckbox new
+								    id: #inspectLastRunSnippet;
+								    aptitude: BrGlamorousCheckboxAptitude;
+								    check).
+							   (BrLabel new
+								    aptitude: BrGlamorousLabelAptitude new;
+								    text: 'Inspect Last Run Snippet') }).
+				  (BrHorizontalPane new
+					   alignCenter;
+					   cellSpacing: 5;
+					   constraintsDo: [ :c | 
+						   c vertical matchParent.
+						   c horizontal matchParent ];
+					   addChildren: { 
+							   (BrCheckbox new
+								    id: #runAllNestedChildren;
+								    aptitude: BrGlamorousCheckboxAptitude;
+								    check).
+							   (BrLabel new
+								    aptitude: BrGlamorousLabelAptitude new;
+								    text: 'Run Children Snippets Recursively') }) }
+]
+
+{ #category : #accessing }
+LepiterBuildingBlocs >> runSnippetsCreateButtons [
+
+	| grid |
+	grid := BrHorizontalPane new
+		        border: (BlBorder paint: (Color gray alpha: 0.3));
+		        constraintsDo: [ :c | 
+			        c vertical matchParent.
+			        c horizontal matchParent ].
+	^ grid addChildren: { 
+			  (BrVerticalPane new
+				   alignTopCenter;
+				   cellSpacing: 5;
+				   constraintsDo: [ :c | 
+					   c vertical fitContent.
+					   c horizontal matchParent ];
+				   addChildren: { 
+						   (BrLabel new
+							    aptitude: BrGlamorousLabelAptitude new;
+							    text: 'Page Level').
+						   (BrButton new
+							    id: #pageAbove;
+							    label: 'Above';
+							    aptitude: BrGlamorousButtonWithLabelAptitude).
+						   (BrButton new
+							    id: #pageBelow;
+							    label: 'Below';
+							    aptitude: BrGlamorousButtonWithLabelAptitude).
+						   (BrButton new
+							    id: #pageAll;
+							    label: 'All';
+							    aptitude: BrGlamorousButtonWithLabelAptitude) }).
+			  (BrVerticalPane new
+				   alignTopCenter;
+				   cellSpacing: 5;
+				   constraintsDo: [ :c | 
+					   c vertical matchParent.
+					   c horizontal matchParent ];
+				   addChildren: { 
+						   (BrLabel new
+							    aptitude: BrGlamorousLabelAptitude new;
+							    text: 'Sibling Level').
+						   (BrButton new
+							    id: #siblingsAbove;
+							    label: 'Above';
+							    aptitude: BrGlamorousButtonWithLabelAptitude).
+						   (BrButton new
+							    id: #siblingsBelow;
+							    label: 'Below';
+							    aptitude: BrGlamorousButtonWithLabelAptitude).
+						   (BrButton new
+							    id: #siblingsAll;
+							    label: 'All';
+							    aptitude: BrGlamorousButtonWithLabelAptitude) }).
+			  (BrVerticalPane new
+				   alignTopCenter;
+				   cellSpacing: 5;
+				   constraintsDo: [ :c | 
+					   c vertical matchParent.
+					   c horizontal matchParent ];
+				   addChildren: { 
+						   (BrLabel new
+							    aptitude: BrGlamorousLabelAptitude new;
+							    text: 'Children').
+						   (BrButton new
+							    id: #childrenAll;
+							    label: 'All';
+							    aptitude: BrGlamorousButtonWithLabelAptitude) }) }
+]
+
+{ #category : #accessing }
+LepiterBuildingBlocs >> runSnippetsLabels [
+
+	^ { 
+		  (BrHorizontalPane new
+			   alignCenter;
+			   constraintsDo: [ :c | 
+				   c vertical fitContent.
+				   c horizontal matchParent ];
+			   addChild: (BrLabel new
+					    aptitude: (BrGlamorousLabelAptitude new fontSize: 16);
+					    text:
+						    'Run a Batch of Multiple Snippets Sequentially in a Background Process')).
+		  (BrHorizontalPane new
+			   alignCenter;
+			   constraintsDo: [ :c | 
+				   c vertical fitContent.
+				   c horizontal matchParent ];
+			   addChild: (BrVerticalPane new alignCenter
+					    constraintsDo: [ :c | 
+						    c vertical fitContent.
+						    c horizontal matchParent ];
+					    addChildren:
+						    (('*Above & below are in relation to the snippet that holds this UI.'
+						      , Character cr asString
+						      ,
+							      'Progress bar will appear and get updated while snippets run and hide again when complete.')
+							     lines collect: [ :each | 
+								     BrLabel new
+									     aptitude: BrGlamorousLabelAptitude new;
+									     text: each ]))) }
+]
+
+{ #category : #accessing }
+LepiterBuildingBlocs >> runSnippetsProgress [
+
+	^ BrHorizontalPane new
+		  alignCenter;
+		  padding: (BlInsets all: 5);
+		  constraintsDo: [ :c | 
+			  c vertical fitContent.
+			  c horizontal matchParent ];
+		  addChild: (BrProgressExamples new barAndTextInside
+				   id: #runSnippetsProgress;
+				   visibility: BlVisibility hidden;
+				   patternLabel: '{1}/{2} Snippets Ran')
 ]
 
 { #category : #accessing }
