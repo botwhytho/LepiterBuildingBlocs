@@ -39,25 +39,26 @@ LepiterBuildingBlocs class >> fileSelector [
 
 { #category : #accessing }
 LepiterBuildingBlocs class >> initialize [
-
+	| method |
 	super initialize.
-
-	(Smalltalk hasClassNamed: #GtCoderEvaluationAnnouncement) ifTrue: [ 
-		| ast codeUpdated |
-		ast := (GtCoderEvaluationAnnouncement
-		        >> #isRequestedByElementOrItsChild:) ast.
-		codeUpdated := (ast allChildren select: #isMessage) anySatisfy: [ 
-			               :each | 
-			               #( #coderViewModel #snippetViewModel ) includes:
-				               each selector ].
-		codeUpdated ifFalse: [ 
-			| link |
-			link := MetaLink new
-				        metaObject: self;
-				        selector: #isRequestedByElementOrItsChild:patch:;
-				        control: #instead;
-				        arguments: #( arguments #receiver ).
-			ast link: link ] ]
+	method := [ [ GtCoderEvaluationAnnouncement >> #isRequestedByElementOrItsChild: ]
+			on: KeyNotFound
+			do: [ LeElementSnippetElementRequester >> #isRequestedByElementOrItsChild: ] ]
+			on: KeyNotFound
+			do: [ nil ].
+	method
+		ifNotNil: [ | ast codeUpdated |
+			ast := method ast.
+			codeUpdated := (ast allChildren select: #isMessage)
+					anySatisfy: [ :each | #(#coderViewModel #snippetViewModel) includes: each selector ].
+			codeUpdated
+				ifFalse: [ | link |
+					link := MetaLink new
+							metaObject: self;
+							selector: #isRequestedByElementOrItsChild:patch:;
+							control: #instead;
+							arguments: #(arguments #receiver).
+					ast link: link ] ]
 ]
 
 { #category : #accessing }
