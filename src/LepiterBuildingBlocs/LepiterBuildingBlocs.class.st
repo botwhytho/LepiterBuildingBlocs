@@ -41,7 +41,7 @@ LepiterBuildingBlocs class >> fileSelector [
 LepiterBuildingBlocs class >> initialize [
 	| method |
 	super initialize.
-	method := [ [ GtCoderEvaluationAnnouncement >> #isRequestedByElementOrItsChild: ]
+	"method := [ [ GtCoderEvaluationAnnouncement >> #isRequestedByElementOrItsChild: ]
 			on: KeyNotFound
 			do: [ LeElementSnippetElementRequester >> #isRequestedByElementOrItsChild: ] ]
 			on: KeyNotFound
@@ -58,7 +58,7 @@ LepiterBuildingBlocs class >> initialize [
 							selector: #isRequestedByElementOrItsChild:patch:;
 							control: #instead;
 							arguments: #(arguments #receiver).
-					ast link: link ] ]
+					ast link: link ] ]"
 ]
 
 { #category : #accessing }
@@ -71,14 +71,14 @@ LepiterBuildingBlocs class >> isRequestedByElementOrItsChild: arguments patch: a
 	anElement := arguments first.
 	object := aReceiver.
 
-	object requesterObject == anElement ifTrue: [ ^ true ].
+	object asCoderRequesterObject == anElement ifTrue: [ ^ true ].
 
-	object requesterObject == anElement snippetViewModel coderViewModel 
+	object asCoderRequesterObject == anElement snippetViewModel coderViewModel 
 		ifTrue: [ ^ true ].
 
-	(object requesterObject isKindOf: BlElement) ifFalse: [ ^ false ].
+	(object asCoderRequesterObject isKindOf: BlElement) ifFalse: [ ^ false ].
 
-	^ object requesterObject hasParent: anElement
+	^ object asCoderRequesterObject hasParent: anElement
 ]
 
 { #category : #accessing }
@@ -319,9 +319,9 @@ LepiterBuildingBlocs >> initialize [
 		flag:
 			'TODO: this walking back on the stack will probably break if underlying platform code changes';
 		id: #lepiterBuildingBloc.
-	bindings := (thisContext stack detect: [ :each | 
-		             each contextClass = GtPharoSourceCoder ]) arguments
-		            second bindingStrategy.
+	bindings := ((thisContext stack
+			detect: [ :each | each receiver isKindOf: GtPharoSourceCoder ]) gtVariables
+			detect: [ :each | each key = #aGtPharoSourceCoderEvaluationContext ]) value.
 	coder := (bindings bindingOf: #thisCoder) value.
 	coderViewModel := (bindings bindingOf: #thisCoderViewModel) value.
 	snippet := (bindings bindingOf: #thisSnippet) value.
@@ -329,13 +329,13 @@ LepiterBuildingBlocs >> initialize [
 	self constraintsDo: [ :c | 
 		c vertical matchParent.
 		c horizontal matchParent ].
-	task := BlTaskAction new action: [ 
-		        snippetElement := self
+"	task := BlTaskAction new action: [ 
+		        snippetElement := bindings requesterObject asCoderRequesterObjectself
 			                          allParentsDetect: [ :each | 
 			                          each isKindOf: LeSnippetContainerElement ]
 			                          ifFound: [ :found | found children first ]
 			                          ifNone: [ nil ] ].
-	self enqueueTask: task.
+	self enqueueTask: task."
 	^ self
 ]
 
