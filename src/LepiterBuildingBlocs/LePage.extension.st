@@ -28,3 +28,17 @@ LePage >> duplicatePageWithNewName: aTitleString [
 						ifFalse: [ parentSnippet addSnippet: newSnippet ] ] ].
 	^ newPage
 ]
+
+{ #category : #'*LepiterBuildingBlocs' }
+LePage >> gtCopyPageActionFor: anAction [
+	<lePageAction>
+	^ anAction button
+		tooltip: 'Create a Copy of the Current Page';
+		priority: 0;
+		icon: BrGlamorousVectorIcons noteCopy;
+		action: [ :aBrButton :aContainerPageElement :aBrButtonModel :aBlClickEvent | 
+			| newPage page |
+			page := aContainerPageElement pageElement pageViewModel pageModel.
+			newPage := page duplicatePageWithNewName: page title , ' - Copy'.
+			aBrButton phlow spawnTool: newPage asPhlowTool ]
+]
