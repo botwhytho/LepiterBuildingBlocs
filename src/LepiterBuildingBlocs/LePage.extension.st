@@ -2,10 +2,14 @@ Extension { #name : #LePage }
 
 { #category : #'*LepiterBuildingBlocs' }
 LePage >> duplicatePageWithNewName: aTitleString [
-
-	| newPage uuidMapping |
+	| newPage newPageType uuidMapping |
 	uuidMapping := Dictionary new.
-	newPage := LePage named: aTitleString.
+	newPage := LePage new.
+	newPageType := self type copy.
+	newPageType
+		title: aTitleString;
+		page: newPage.
+	newPage type: newPageType.
 	self database addPage: newPage.
 	self
 		deep: [ :parent | parent children children ]
@@ -20,8 +24,7 @@ LePage >> duplicatePageWithNewName: aTitleString [
 				fromContent: to.
 			(from isKindOf: LePage)
 				ifTrue: [ newPage addSnippet: newSnippet ]
-				ifFalse: [ 
-					| parentSnippet |
+				ifFalse: [ | parentSnippet |
 					parentSnippet := uuidMapping at: from uid.
 					parentSnippet children children isEmpty
 						ifTrue: [ parentSnippet addFirstSnippet: newSnippet ]
