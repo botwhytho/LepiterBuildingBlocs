@@ -5,7 +5,11 @@ A collection of community-built tools and utilities to add additional functional
 # Installation
 
 ```Smalltalk
-[ EpMonitor current	disableDuring: [ Metacello new			baseline: 'LepiterBuildingBlocs';			repository: 'github://botwhytho/LepiterBuildingBlocs:main/src';			load ] ] forkAt: 29 named: #LepiterBuildingBlocs
+[ EpMonitor current
+	disableDuring: [ Metacello new
+			baseline: 'LepiterBuildingBlocs';
+			repository: 'github://botwhytho/LepiterBuildingBlocs:main/src';
+			load ] ] asAsyncPromiseWithUserBackgroundPriority
 ```
 
 To depend on this package add this to your baseline:
